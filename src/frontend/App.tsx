@@ -65,16 +65,16 @@ export default function App() {
           <span className="text-xl font-bold tracking-tight">ReconEngine</span>
         </div>
         <div className="flex items-center gap-4 text-sm font-medium text-gray-500">
-          <span>Status: <span className="text-green-500">Online</span></span>
+          
         </div>
       </nav>
 
       {/* Sidebar */}
       <aside className="w-64 bg-white border-r border-gray-200 pt-20 h-full fixed left-0">
         <div className="px-4 space-y-1">
-          <SidebarItem icon="📊" label="Dashboard" active />
-          <SidebarItem icon="📁" label="Report History" />
-          <SidebarItem icon="⚙️" label="Global Settings" />
+          <SidebarItem icon="" label="Dashboard" active />
+          <SidebarItem icon="" label="Report History" />
+          <SidebarItem icon="" label="Global Settings" />
         </div>
       </aside>
 
