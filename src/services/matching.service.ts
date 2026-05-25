@@ -36,8 +36,10 @@ export async function runMatching(runId: string, config: { timestampTolerance: n
       const eType = eTx.type;
       if (typeMap[uType] !== eType && uType !== eType) return false;
 
+      // For candidacy, we use a wider window (e.g., 1 hour) to detect potential conflicts
+      // instead of just the strict tolerance.
       const eTime = eTx.timestamp!.getTime();
-      if (Math.abs(uTime - eTime) > config.timestampTolerance * 1000) return false;
+      if (Math.abs(uTime - eTime) > 3600 * 1000) return false;
 
       return true;
     });
@@ -49,10 +51,16 @@ export async function runMatching(runId: string, config: { timestampTolerance: n
       });
 
       const bestMatch = candidates[0];
+      const eTime = bestMatch.timestamp!.getTime();
       const eQty = bestMatch.quantity!;
+
+      const timeDiff = Math.abs(uTime - eTime);
       const qtyDiffPct = Math.abs(uQty - eQty) / (uQty || 1) * 100;
 
-      if (qtyDiffPct <= config.quantityTolerance) {
+      const timeOk = timeDiff <= config.timestampTolerance * 1000;
+      const qtyOk = qtyDiffPct <= config.quantityTolerance;
+
+      if (timeOk && qtyOk) {
         results.push({
           runId,
           userTxId: uTx._id,
@@ -63,12 +71,17 @@ export async function runMatching(runId: string, config: { timestampTolerance: n
         matchedUserIds.add(uTx._id.toString());
         matchedExchangeIds.add(bestMatch._id.toString());
       } else {
+        let conflictReason = '';
+        if (!timeOk && !qtyOk) conflictReason = `Both timestamp (${(timeDiff/1000).toFixed(0)}s) and quantity (${qtyDiffPct.toFixed(4)}%) exceed tolerance`;
+        else if (!timeOk) conflictReason = `Timestamp difference (${(timeDiff/1000).toFixed(0)}s) exceeds tolerance`;
+        else conflictReason = `Quantity difference (${qtyDiffPct.toFixed(4)}%) exceeds tolerance`;
+
         results.push({
           runId,
           userTxId: uTx._id,
           exchangeTxId: bestMatch._id,
           status: 'CONFLICTING',
-          reason: `Quantity difference exceeds tolerance: ${qtyDiffPct.toFixed(4)}%`,
+          reason: conflictReason,
         });
         matchedUserIds.add(uTx._id.toString());
         matchedExchangeIds.add(bestMatch._id.toString());
@@ -79,9 +92,6 @@ export async function runMatching(runId: string, config: { timestampTolerance: n
   // Handle unmatched
   const unmatchedUser = userTxs.filter(uTx => !matchedUserIds.has(uTx._id.toString()));
   const unmatchedExchange = exchangeTxs.filter(eTx => !matchedExchangeIds.has(eTx._id.toString()));
-
-  // We don't save unmatched transactions in ReconciledTransaction because they don't have a pair,
-  // they will be identified in the report generation by comparing the sets.
 
   await ReconciledTransaction.insertMany(results);
 

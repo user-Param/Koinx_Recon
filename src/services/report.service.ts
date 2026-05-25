@@ -5,6 +5,12 @@ import { ReconciledTransaction } from '../db/schemas/ReconciledTransaction.js';
 import fs from 'node:fs';
 import path from 'node:path';
 
+function flattenTx(tx: any) {
+  if (!tx) return {};
+  const { _id, runId, __v, ...data } = tx.toObject ? tx.toObject() : tx;
+  return data;
+}
+
 export async function generateReport(runId: string) {
   const run = await ReconciliationRun.findById(runId);
   if (!run) throw new Error('Run not found');
@@ -18,36 +24,65 @@ export async function generateReport(runId: string) {
 
   const reportData: any[] = [];
 
-  // Matched and Conflicting
+  // 1. Matched and Conflicting
   for (const r of reconciled) {
+    const uData = flattenTx(r.userTxId);
+    const eData = flattenTx(r.exchangeTxId);
+
     reportData.push({
       category: r.status === 'MATCHED' ? 'Matched' : 'Conflicting',
-      userRow: JSON.stringify(r.userTxId?.toObject()),
-      exchangeRow: JSON.stringify(r.exchangeTxId?.toObject()),
       reason: r.reason,
+      user_txId: uData.externalId,
+      user_timestamp: uData.timestamp,
+      user_asset: uData.asset,
+      user_quantity: uData.quantity,
+      user_type: uData.type,
+      exchange_txId: eData.externalId,
+      exchange_timestamp: eData.timestamp,
+      exchange_asset: eData.asset,
+      exchange_quantity: eData.quantity,
+      exchange_type: eData.type,
     });
   }
 
-  // Unmatched User
+  // 2. Unmatched User
   for (const uTx of allUserTxs) {
     if (!matchedIds.has(uTx._id.toString())) {
+      const uData = flattenTx(uTx);
       reportData.push({
         category: 'Unmatched (User only)',
-        userRow: JSON.stringify(uTx.toObject()),
-        exchangeRow: 'N/A',
-        reason: 'No matching transaction found in exchange file',
+        reason: uTx.status === 'INVALID' ? uTx.invalidReason : 'No matching transaction found in exchange file',
+        user_txId: uData.externalId,
+        user_timestamp: uData.timestamp,
+        user_asset: uData.asset,
+        user_quantity: uData.quantity,
+        user_type: uData.type,
+        exchange_txId: 'N/A',
+        exchange_timestamp: 'N/A',
+        exchange_asset: 'N/A',
+        exchange_quantity: 'N/A',
+        exchange_type: 'N/A',
       });
     }
   }
 
-  // Unmatched Exchange
+  // 3. Unmatched Exchange
   for (const eTx of allExchangeTxs) {
     if (!matchedExchangeIds.has(eTx._id.toString())) {
+      const eData = flattenTx(eTx);
       reportData.push({
         category: 'Unmatched (Exchange only)',
-        userRow: 'N/A',
-        exchangeRow: JSON.stringify(eTx.toObject()),
-        reason: 'No matching transaction found in user file',
+        reason: eTx.status === 'INVALID' ? eTx.invalidReason : 'No matching transaction found in user file',
+        user_txId: 'N/A',
+        user_timestamp: 'N/A',
+        user_asset: 'N/A',
+        user_quantity: 'N/A',
+        user_type: 'N/A',
+        exchange_txId: eData.externalId,
+        exchange_timestamp: eData.timestamp,
+        exchange_asset: eData.asset,
+        exchange_quantity: eData.quantity,
+        exchange_type: eData.type,
       });
     }
   }

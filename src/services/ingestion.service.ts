@@ -15,7 +15,8 @@ export async function ingestCSV(filePath: string, source: 'USER' | 'EXCHANGE', r
       .on('end', async () => {
         try {
           const processed = transactions.map(row => {
-            const { timestamp, quantity, asset, type, txId } = row;
+            const { timestamp, quantity, asset, type, transaction_id } = row;
+            const txId = transaction_id;
 
             const parsedDate = new Date(timestamp);
             const parsedQty = parseFloat(quantity);
@@ -38,9 +39,9 @@ export async function ingestCSV(filePath: string, source: 'USER' | 'EXCHANGE', r
               source,
               externalId: txId || 'UNKNOWN',
               timestamp: isValid ? parsedDate : undefined,
-              asset,
+              asset: asset || 'UNKNOWN',
               quantity: isValid ? parsedQty : undefined,
-              type,
+              type: type || 'UNKNOWN',
               status: isValid ? 'VALID' : 'INVALID',
               invalidReason: reason,
               runId,

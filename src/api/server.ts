@@ -17,13 +17,13 @@ const server = Bun.serve({
       POST: handleReconcile,
     },
     '/report/:runId': {
-      GET: (req, { params }) => handleGetReport(req, params.runId),
+      GET: (req) => handleGetReport(req, req.params.runId),
     },
     '/report/:runId/summary': {
-      GET: (req, { params }) => handleGetSummary(req, params.runId),
+      GET: (req) => handleGetSummary(req, req.params.runId),
     },
     '/report/:runId/unmatched': {
-      GET: (req, { params }) => handleGetUnmatched(req, params.runId),
+      GET: (req) => handleGetUnmatched(req, req.params.runId),
     },
   },
 });
